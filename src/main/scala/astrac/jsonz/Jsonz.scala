@@ -3,40 +3,31 @@ package astrac.jsonz
 import org.json4s._
 import org.json4s.native.JsonMethods._
 import scalaz._
+import Scalaz._
 
-sealed trait Validator[T <: JValue]
+sealed trait Validator[T <: JValue] {
+  def apply(v: JValue): ValidationNel[ValidationError, T]
+}
+sealed trait ValidationError
+sealed trait PropertyValidator[T <: JValue] extends Validator[T] {
+  def name: String
+}
 
 object Jsonz {
-  sealed trait PropertyOpt
-  sealed trait Required extends PropertyOpt
-  sealed trait Optional extends PropertyOpt
+  def validatorFor[T <: JValue]: Validator[T] = ???
 
-  case class Properties(validators: Set[PropertyValidator[_, _]])
-  object Properties { def empty = Properties(Set.empty) }
-
-  case class PropertyValidator[T <: JValue, Opt <: PropertyOpt](name: String, rules: List[Rule[T]]) extends Validator[T]
-
-  case class ObjectValidator(properties: Properties) extends Validator[JObject]
-
-  case class PropertiesBuilder(validators: Set[PropertyValidator[_, _]])
-  object PropertiesBuilder { def empty = PropertiesBuilder(Set.empty) }
-
-  case class ValidationFailure(property: String, value: JValue, message: String)
-
-  type Rule[T] = T => ValidationNel[ValidationFailure, T]
-
-  case class PropertyValidatorBuilder[T <: JValue](name: String, rules: List[Rule[T]])
-
-  implicit class PropertiesBuilderOps(pb: Properties) {
-    def required[T <: JValue](name: String) = pb.copy(validators = pb.validators + PropertyValidator[T, Required](name, Nil))
-    def optional[T <: JValue](name: String) = pb.copy(validators = pb.validators + PropertyValidator[T, Optional](name, Nil))
+  implicit class ObjectValidatorOps[V <: Validator[JObject]](ov: V) {
+    def withProperties(properties: PropertyValidator[_]*): V = ???
   }
 
-  implicit class ObjectValidatorOps(ov: ObjectValidator) {
-    def withProperties(propSpec: Properties => Properties) = ov.copy(properties = propSpec(Properties.empty))
+  implicit class StringOps(str: String) {
+    def isA[T <: JValue] : PropertyValidator[T] = ???
   }
 
-  def validatorFor[T <: JValue] = ObjectValidator(Properties(Set.empty))
+  implicit class PropertyValidatorOps[T <: JValue](pv: PropertyValidator[T]) {
+    def required: PropertyValidator[T] = ???
+    def optional: PropertyValidator[T] = ???
+  }
 }
 
 object Example {
@@ -45,12 +36,17 @@ object Example {
   /**
     * { "foo": { "bar": [1, 2, 3], "baz": 10 }, "qux": 1.2, "quz": true, "ping": "pong" }
     */
-  validatorFor[JObject] withProperties {
-    _.required[JDecimal]("qux")
-     .required[JBool]("quz")
-     .optional[JObject]("foo") withProperties {
-       .required[JArray]("bar")
-       .optional[JInt]("baz") }
-     .required[JString]("ping") matchingRegex("pong".r)
-  }
+  val fooValidator: Validator[JObject] = validatorFor[JObject] withProperties(
+    "qux".isA[JDecimal] required,
+    "quz".isA[JBool] optional,
+    "ping".isA[JString] optional /*matchingRegex("pong".r)*/,
+    "foo".isA[JObject] withProperties(
+      "bar".isA[JArray],
+      "baz".isA[JInt]
+    )
+  )
+
+  val x: JValue = ???
+
+  val validated: ValidationNel[ValidationError, JObject] = fooValidator(x)
 }
