@@ -93,4 +93,18 @@ class JsonzSpecs extends FlatSpec with Matchers {
     validator(true)(json) should equal(Success(json))
     getPropertyErrors(validator(false)(json)) should contain theSameElementsAs("quz" :: Nil)
   }
+
+  it should "support array isEmpty predicate" in {
+    val json = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ ] }, "quz": "blag", "dub": false }""")
+
+    val validator = valid[JObject] mustHave (
+      "foo" -> valid[JInt],
+      "bar" -> (valid[JObject] mustHave (
+        "baz" -> valid[JBool],
+        "qux" -> valid[JArray].shouldBeEmpty
+      ))
+    )
+
+    validator(json) should equal(Success(json))
+  }
 }

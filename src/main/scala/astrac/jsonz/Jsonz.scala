@@ -48,6 +48,9 @@ object Jsonz {
   }
 
   implicit class ArrayValidatorOps(v: Validator[JArray]) {
+    def shouldBeEmpty: Validator[JArray] = v should {ja =>
+      ja.values.isEmpty.option(ja).fold(ValidationError(s"Expected empty array, got $ja").failureNel[JArray])(_.successNel[ValidationError])
+    }
   }
 
   implicit class ValidatorOps[T <: JValue](v: Validator[T]) {
