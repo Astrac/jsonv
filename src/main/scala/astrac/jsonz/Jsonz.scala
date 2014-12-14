@@ -35,7 +35,8 @@ object Jsonz {
     private def validatorForProp[T <: JValue](prop: String, validator: Validator[T]): Validator[JObject] = { jv =>
       validator(jv \ prop).bimap(
         _.map(err => err.copy(path = prop :: err.path)),
-        _ => jv.asInstanceOf[JObject]) // TODO: Remove ugly asInstanceOf
+        _ => jv.asInstanceOf[JObject]
+      ) // TODO: Remove ugly asInstanceOf
     }
 
     def mustHave[T](props: Map[String, Validator[_ <: JValue]]): Validator[JObject] =
@@ -46,12 +47,26 @@ object Jsonz {
     def mustHave[T](props: (String, Validator[_ <: JValue])*): Validator[JObject] = mustHave[T](props.toMap)
   }
 
-  def validated[T <: JValue: ClassTag] = Monoid[Validator[T]].zero
+  implicit class ArrayValidatorOps(v: Validator[JArray]) {
+  }
 
-  def optional[T <: JValue: ClassTag](v: Validator[T]): Validator[JValue] = { jv =>
-    jv match {
-      case JNothing | JNull => jv.successNel[ValidationError]
-      case _ => v(jv)
+  implicit class ValidatorOps[T <: JValue](v: Validator[T]) {
+    def should(f: T => JsonValidation[T]): Validator[T] = jv => v(jv) match {
+      case Success(r) => f(r)
+      case failure => failure
+    }
+
+    def should(f: T => Boolean, error: String): Validator[T] = should { jv =>
+      f(jv).fold(jv.successNel[ValidationError], ValidationError(error).failureNel[T])
+    }
+
+    def ?[T <: JValue: ClassTag]: Validator[JValue] = { jv =>
+      jv match {
+        case JNothing | JNull => jv.successNel[ValidationError]
+        case _ => v(jv)
+      }
     }
   }
+
+  def valid[T <: JValue: ClassTag] = Monoid[Validator[T]].zero
 }

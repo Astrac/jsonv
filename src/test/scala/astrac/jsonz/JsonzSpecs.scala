@@ -16,14 +16,14 @@ class JsonzSpecs extends FlatSpec with Matchers {
   "The Jsonz DSL" should "validate a json object" in {
     val json = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ 1, 2, 3 ] }, "quz": "blag", "dub": 1.2 }""")
 
-    val validator = validated[JObject] mustHave (
-      "foo" -> validated[JInt],
-      "bar" -> (validated[JObject] mustHave (
-        "baz" -> validated[JBool],
-        "qux" -> validated[JArray]
+    val validator = valid[JObject] mustHave (
+      "foo" -> valid[JInt],
+      "bar" -> (valid[JObject] mustHave (
+        "baz" -> valid[JBool],
+        "qux" -> valid[JArray]
       )),
-      "quz" -> validated[JString],
-      "dub" -> validated[JDouble]
+      "quz" -> valid[JString],
+      "dub" -> valid[JDouble]
     )
 
     validator(json) should equal(Success(json))
@@ -32,11 +32,11 @@ class JsonzSpecs extends FlatSpec with Matchers {
   it should "collect errors and keep track of where they happened" in {
     val json = parse("""{ "foo": 1, "bar": false, "baz": { "qux": false } }""")
 
-    val validator = validated[JObject] mustHave (
-      "foo" -> validated[JString],
-      "bar" -> validated[JString],
-      "baz" -> (validated[JObject] mustHave (
-        "qux" -> validated[JInt]
+    val validator = valid[JObject] mustHave (
+      "foo" -> valid[JString],
+      "bar" -> valid[JString],
+      "baz" -> (valid[JObject] mustHave (
+        "qux" -> valid[JInt]
       ))
     )
 
@@ -47,34 +47,50 @@ class JsonzSpecs extends FlatSpec with Matchers {
     val jsonMissing = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ 1, 2, 3 ] }, "quz": "blag", "dub": 1.2 }""")
     val jsonNull = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ 1, 2, 3 ] }, "quz": "blag", "dub": 1.2, "puk": null }""")
 
-    val validator = validated[JObject] mustHave (
-      "foo" -> validated[JInt],
-      "bar" -> (validated[JObject] mustHave (
-        "baz" -> validated[JBool],
-        "qux" -> validated[JArray]
+    val validator = valid[JObject] mustHave (
+      "foo" -> valid[JInt],
+      "bar" -> (valid[JObject] mustHave (
+        "baz" -> valid[JBool],
+        "qux" -> valid[JArray]
       )),
-      "quz" -> validated[JString],
-      "dub" -> validated[JDouble],
-      "puk" -> optional(validated[JString])
+      "quz" -> valid[JString],
+      "dub" -> valid[JDouble],
+      "puk" -> valid[JString].?
     )
 
     validator(jsonMissing) should equal(Success(jsonMissing))
     validator(jsonNull) should equal(Success(jsonNull))
   }
 
-  it should "provide errors if an optional property is provided but not validated" in {
+  it should "provide errors if an optional property is provided but not valid" in {
     val json = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ 1, 2, 3 ] }, "quz": "blag", "dub": false }""")
 
-    val validator = validated[JObject] mustHave (
-      "foo" -> validated[JInt],
-      "bar" -> (validated[JObject] mustHave (
-        "baz" -> validated[JBool],
-        "qux" -> validated[JArray]
+    val validator = valid[JObject] mustHave (
+      "foo" -> valid[JInt],
+      "bar" -> (valid[JObject] mustHave (
+        "baz" -> valid[JBool],
+        "qux" -> valid[JArray]
       )),
-      "quz" -> validated[JString],
-      "dub" -> optional(validated[JDouble])
+      "quz" -> valid[JString],
+      "dub" -> valid[JDouble].?
     )
 
     getPropertyErrors(validator(json)) should contain theSameElementsAs("dub" :: Nil)
+  }
+
+  it should "support boolean predicates" in {
+    val json = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ 1, 2, 3 ] }, "quz": "blag", "dub": false }""")
+
+    def validator(fail: Boolean) = valid[JObject] mustHave (
+      "foo" -> valid[JInt],
+      "bar" -> (valid[JObject] mustHave (
+        "baz" -> valid[JBool],
+        "qux" -> valid[JArray]
+      )),
+      "quz" -> (valid[JString] should(_ => fail, "Invalid"))
+    )
+
+    validator(true)(json) should equal(Success(json))
+    getPropertyErrors(validator(false)(json)) should contain theSameElementsAs("quz" :: Nil)
   }
 }
