@@ -5,19 +5,10 @@ import org.json4s.native.JsonMethods._
 import scala.reflect.ClassTag
 import scala.util.matching.Regex
 import scalaz._
-import Scalaz._
+import scalaz.Scalaz._
 import scalaz.Validation.FlatMap._
-import scala.collection.immutable.Iterable
 
 case class ValidationError(error: String, path: List[String] = Nil)
-
-object Types {
-  type JV[T] = ValidationNel[ValidationError, T]
-  type Validator[S, T] = S => JV[T]
-  type Rule[T] = Validator[T, T]
-}
-
-import Types._
 
 trait ValidatorOpsBase[S, T] {
   val v: Validator[S, T]

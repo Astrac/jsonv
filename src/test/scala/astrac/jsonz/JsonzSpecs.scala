@@ -10,9 +10,7 @@ import Scalaz._
 class JsonzSpecs extends FlatSpec with Matchers {
 
   import JsonValidator._
-
-  def getPropertyErrors(v: ValidationNel[ValidationError, _]) =
-    v.fold(_.toList, _ => Nil).map { case ValidationError(err, path) => path.mkString("/") }
+  import Utils._
 
   "The DSL" should "create a validator for a one-property json object" in {
     val json = parse("""{ "foo": 1 }""")
@@ -25,9 +23,9 @@ class JsonzSpecs extends FlatSpec with Matchers {
   it should "validate a complex json object" in {
     val json = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ 1, 2, 3 ] }, "quz": "blag", "dub": 1.2 }""")
 
-    val validator = valid[JObject] <~ props (
+    val validator = valid[JObject] <~ props(
       _("foo")[JInt],
-      _("bar")[JObject] <~ props (
+      _("bar")[JObject] <~ props(
         _("baz")[JBool],
         _("qux")[JArray]
       ),
@@ -41,15 +39,15 @@ class JsonzSpecs extends FlatSpec with Matchers {
   it should "collect errors and keep track of where they happened" in {
     val json = parse("""{ "foo": 1, "bar": false, "baz": { "qux": false } }""")
 
-    val validator = valid[JObject] <~ props (
+    val validator = valid[JObject] <~ props(
       _("foo")[JString],
       _("bar")[JString],
-      _("baz")[JObject] <~ props (
+      _("baz")[JObject] <~ props(
         _("qux")[JInt]
       )
     )
 
-    getPropertyErrors(validator(json)) should contain theSameElementsAs("foo" :: "bar" :: "baz/qux" :: Nil)
+    getPropertyErrors(validator(json)) should contain theSameElementsAs ("foo" :: "bar" :: "baz/qux" :: Nil)
   }
 
   it should "accept missing/null properties in an object if they are optional and validate them otherwise" in {
@@ -57,9 +55,9 @@ class JsonzSpecs extends FlatSpec with Matchers {
     val jsonNull = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ 1, 2, 3 ] }, "quz": "blag", "dub": 1.2, "puk": null }""")
     val jsonOk = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ 1, 2, 3 ] }, "quz": "blag", "dub": 1.2, "puk": "ok" }""")
 
-    val validator = valid[JObject] <~ props (
+    val validator = valid[JObject] <~ props(
       _("foo")[JInt],
-      _("bar")[JObject] <~ props (
+      _("bar")[JObject] <~ props(
         _("baz")[JBool],
         _("qux")[JArray]
       ),
@@ -76,9 +74,9 @@ class JsonzSpecs extends FlatSpec with Matchers {
   it should "provide errors if an optional property is provided but not valid" in {
     val json = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ 1, 2, 3 ] }, "quz": "blag", "dub": false }""")
 
-    val validator = valid[JObject] <~ props (
+    val validator = valid[JObject] <~ props(
       _("foo")[JInt],
-      _("bar")[JObject] <~ props (
+      _("bar")[JObject] <~ props(
         _("baz")[JBool],
         _("qux")[JArray]
       ),
@@ -86,15 +84,15 @@ class JsonzSpecs extends FlatSpec with Matchers {
       _("dub")[JDouble].?
     )
 
-    getPropertyErrors(validator(json)) should contain theSameElementsAs("dub" :: Nil)
+    getPropertyErrors(validator(json)) should contain theSameElementsAs ("dub" :: Nil)
   }
 
   it should "support boolean predicates" in {
     val json = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ 1, 2, 3 ] }, "quz": "blag", "dub": false }""")
 
-    def failing(fail: Boolean) = valid[JObject] <~ props (
+    def failing(fail: Boolean) = valid[JObject] <~ props(
       _("foo")[JInt],
-      _("bar")[JObject] <~ props (
+      _("bar")[JObject] <~ props(
         _("baz")[JBool],
         _("qux")[JArray]
       ),
@@ -102,16 +100,16 @@ class JsonzSpecs extends FlatSpec with Matchers {
     )
 
     failing(false)(json) should equal(Success(json))
-    getPropertyErrors(failing(true)(json)) should contain theSameElementsAs("quz" :: Nil)
+    getPropertyErrors(failing(true)(json)) should contain theSameElementsAs ("quz" :: Nil)
   }
 
   it should "support array isEmpty and isNotEmpty predicate" in {
     val emptyJson = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ ] }, "quz": "blag", "dub": false }""")
     val nonEmptyJson = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ 1 ] }, "quz": "blag", "dub": false }""")
 
-    def validator(empty: Boolean) = valid[JObject] <~ props (
+    def validator(empty: Boolean) = valid[JObject] <~ props(
       _("foo")[JInt],
-      _("bar")[JObject] <~ props (
+      _("bar")[JObject] <~ props(
         _("baz")[JBool],
         _("qux")[JArray] <~ (if (empty) isEmpty else isNotEmpty)
       )
@@ -119,7 +117,7 @@ class JsonzSpecs extends FlatSpec with Matchers {
 
     validator(true)(emptyJson) should equal(Success(emptyJson))
     validator(false)(nonEmptyJson) should equal(Success(nonEmptyJson))
-    getPropertyErrors(validator(false)(emptyJson)) should contain theSameElementsAs("bar/qux" :: Nil)
-    getPropertyErrors(validator(true)(nonEmptyJson)) should contain theSameElementsAs("bar/qux" :: Nil)
+    getPropertyErrors(validator(false)(emptyJson)) should contain theSameElementsAs ("bar/qux" :: Nil)
+    getPropertyErrors(validator(true)(nonEmptyJson)) should contain theSameElementsAs ("bar/qux" :: Nil)
   }
 }
