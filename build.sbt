@@ -1,4 +1,4 @@
-name := "jsonz"
+name := "jsonv"
 
 libraryDependencies :=
   Seq(

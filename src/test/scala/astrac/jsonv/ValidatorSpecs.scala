@@ -1,4 +1,4 @@
-package astrac.jsonz
+package astrac.jsonv
 
 import org.scalatest.FlatSpec
 import org.scalatest.Matchers
@@ -7,7 +7,7 @@ import org.json4s.native.JsonMethods._
 import scalaz._
 import Scalaz._
 
-class JsonzSpecs extends FlatSpec with Matchers {
+class ValidatorSpecs extends FlatSpec with Matchers {
 
   import JsonValidator._
   import Utils._

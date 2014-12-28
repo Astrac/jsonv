@@ -1,4 +1,4 @@
-package astrac.jsonz
+package astrac.jsonv
 
 import org.json4s.native.Serialization
 import org.scalatest.FlatSpec

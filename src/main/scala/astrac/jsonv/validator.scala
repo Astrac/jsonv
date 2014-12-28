@@ -1,4 +1,4 @@
-package astrac.jsonz
+package astrac.jsonv
 
 import org.json4s._
 import org.json4s.native.JsonMethods._

@@ -1,4 +1,4 @@
-package astrac.jsonz
+package astrac.jsonv
 
 import scalaz._
 import Scalaz._
