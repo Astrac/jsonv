@@ -19,7 +19,7 @@ trait ValidatorOpsBase[S, T] {
     v(s).flatMap {
       _ match {
         case ct(tt) => tt.successNel[ValidationError]
-        case _ => ValidationError("").failureNel[TT]
+        case invalid => ValidationError(s"Expected instance of ${ct.runtimeClass}, got ${invalid.getClass.getName}").failureNel[TT]
       }
     }
   }
@@ -68,7 +68,7 @@ object JsonValidator extends ValidatorDsl {
 
   def matchRegex(r: Regex): Rule[JString] = { js =>
     if (js.s.matches(r.toString)) js.successNel[ValidationError]
-    else ValidationError("???").failureNel[JString]
+    else ValidationError(s"The value ${js.s} does not match /${r.toString}/").failureNel[JString]
   }
 
   case class PropertyBuilder(val name: String) {
