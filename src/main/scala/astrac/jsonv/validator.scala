@@ -26,9 +26,10 @@ trait ValidatorOpsBase[S, T] {
 
   def <~(rules: Rule[T]*): Validator[S, T] = { s: S =>
     val vt = v(s)
-    vt +++ vt.flatMap { t: T =>
+
+    vt.fold(_ => vt, _ => vt +++ vt.flatMap { t: T =>
       rules.map(_(t)).foldLeft(t.successNel[ValidationError])(_ +++ _)
-    }
+    })
   }
 }
 
@@ -80,7 +81,8 @@ object JsonValidator extends ValidatorDsl {
   def prop(p: PropertySpec): Rule[JObject] = { jo =>
     val (name, v) = p(PropertyBuilder)
 
-    v(jo \ name).fold(
+    val x = v(jo \ name)
+    x.fold(
       _.map(e => e.copy(path = name :: e.path)).failure[JObject],
       _ => jo.successNel[ValidationError])
   }
@@ -88,6 +90,22 @@ object JsonValidator extends ValidatorDsl {
   def props(ps: PropertySpec*): Rule[JObject] = { jo =>
     implicit val semigroup = Semigroup.lastSemigroup[JObject]
     ps.map(prop).foldLeft(aValid[JObject](jo))(_ +++ _(jo))
+  }
+
+
+  def path[T <: JValue : ClassTag](s1: String, segments: String*)(v: Rule[T]): Rule[JObject] = {
+    def pathImpl[T <: JValue : ClassTag](segments: List[String])(v: Rule[T]): Rule[JObject] = {
+      segments match {
+        case Nil =>
+          sys.error("Unexpected empty list in path function")
+        case s :: Nil =>
+          prop(_(s)[T] <~ v)
+        case s :: ss =>
+          prop(_(s)[JObject] <~ pathImpl(ss)(v))
+      }
+    }
+
+    pathImpl(s1 :: segments.toList)(v)
   }
 
   def predicate[T <: JValue](p: T => Boolean, msg: String): Rule[T] = { t =>

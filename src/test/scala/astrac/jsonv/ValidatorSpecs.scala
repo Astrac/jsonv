@@ -21,7 +21,7 @@ class ValidatorSpecs extends FlatSpec with Matchers {
   }
 
   it should "validate a complex json object" in {
-    val json = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ 1, 2, 3 ] }, "quz": "blag", "dub": 1.2 }""")
+    val json = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ 1, 2, 3 ]}, "quz": "blag", "dub": 1.2 }""")
 
     val validator = valid[JObject] <~ props(
       _("foo")[JInt],
@@ -119,5 +119,57 @@ class ValidatorSpecs extends FlatSpec with Matchers {
     validator(false)(nonEmptyJson) should equal(Success(nonEmptyJson))
     getPropertyErrors(validator(false)(emptyJson)) should contain theSameElementsAs ("bar/qux" :: Nil)
     getPropertyErrors(validator(true)(nonEmptyJson)) should contain theSameElementsAs ("bar/qux" :: Nil)
+  }
+
+  it should "support adding rules to a validator" in {
+    val json = parse("""{ "foo": 1, "bar": { "baz": true, "qux": [ 1, 2, 3 ], "fax": true }, "quz": "blag", "dub": false }""")
+
+    def failing(fail: Boolean) = valid[JObject] <~ props(
+      _("foo")[JInt],
+      _("bar")[JObject] <~ props(
+        _("baz")[JBool],
+        _("qux")[JArray]
+      ),
+      _("quz")[JString] <~ predicate(_ => !fail, "")
+    ) <~ prop(
+      _("bar")[JObject] <~ prop(
+        _("fax")[JBool]
+      )
+    )
+
+    failing(false)(json) should equal(Success(json))
+    getPropertyErrors(failing(true)(json)) should contain theSameElementsAs ("quz" :: Nil)
+  }
+
+  it should "support adding rules to nested paths" in {
+    val json = parse("""{ "bar": { "baz": true, "fax": true } }""")
+
+    def failing(fail: Boolean) = valid[JObject] <~ props(
+      _("bar")[JObject] <~ props(
+        _("baz")[JBool]
+      )
+    ) <~ prop(
+      _("bar")[JObject] <~ prop(
+        _("baz")[JBool] <~ predicate(_ => !fail, "")
+      )
+    )
+
+    failing(false)(json) should equal(Success(json))
+    getPropertyErrors(failing(true)(json)) should contain theSameElementsAs ("bar/baz" :: Nil)
+  }
+
+  it should "support the 'path' combinator" in {
+    val json = parse("""{ "bar": { "baz": true }, "foo": {"fox": false } }""")
+
+    def failing(fail: Boolean) = valid[JObject] <~ props(
+      _("bar")[JObject] <~ props(
+        _("baz")[JBool]
+      )
+    ) <~
+    path("bar", "baz")(valid[JBool] <~ predicate(_ => !fail, "")) <~
+    path("foo", "fox")(valid[JBool] <~ predicate(_ => !fail, ""))
+
+    failing(false)(json) should equal(Success(json))
+    getPropertyErrors(failing(true)(json)) should contain theSameElementsAs ("bar/baz" :: Nil)
   }
 }
